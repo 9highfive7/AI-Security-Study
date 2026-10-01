@@ -25,6 +25,7 @@
   --ok: #1d6b3a;
   --crit-soft: #fbe9e7;
   --ok-soft: #e5f3ea;
+  --scrim: rgba(8, 14, 20, 0.55);
 
   --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
   --font-body: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
@@ -93,6 +94,9 @@ pre code { background: none; padding: 0; font-size: 0.875rem; }
 }
 .icon-btn:hover { border-color: var(--accent); }
 .toc-toggle { display: none; }
+.toc-head, .toc-backdrop, .toc-backdrop[hidden] { display: none; }
+.toc-head + h2 { margin-top: 0; }
+.toc-head b { font-family: var(--font-display); font-size: 1rem; }
 
 /* ---------- shell ---------- */
 .shell {
@@ -297,15 +301,28 @@ footer { border-top: 1px solid var(--line); margin-top: var(--sp-5); padding-top
 @media (max-width: 960px) {
   .shell { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .toc-toggle { display: inline-block; }
+  /* スマホでは画面全高のドロワー。ヘッダーより手前に重ね、上端が隠れないようにする */
   .toc {
-    position: fixed; inset: 0 auto 0 0; top: calc(env(safe-area-inset-top, 0px) + 49px);
-    width: min(20rem, 86vw); max-height: none; z-index: 15;
+    position: fixed; top: 0; bottom: 0; left: 0;
+    width: min(20rem, 86vw); max-height: none; z-index: 40;
     background: var(--surface); border-right: 1px solid var(--line);
-    padding: var(--sp-2); transform: translateX(-105%); transition: transform .2s;
+    padding: 0 var(--sp-2) calc(env(safe-area-inset-bottom, 0px) + var(--sp-4));
+    overflow-y: auto; overscroll-behavior: contain;
+    transform: translateX(-105%); visibility: hidden;
+    transition: transform .2s, visibility .2s;
   }
-  .toc.open { transform: none; }
+  .toc.open { transform: none; visibility: visible; }
+  .toc-head {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+    position: sticky; top: 0; z-index: 1;
+    margin: 0 calc(var(--sp-2) * -1) var(--sp-2);
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) var(--sp-2) 12px;
+    background: var(--surface); border-bottom: 1px solid var(--line);
+  }
+  .toc-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 35; background: var(--scrim); }
   .progress-label { display: none; }
 }
+body.toc-locked { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .toc, .progress-bar { transition: none; } }
 </style>
 </head>
@@ -322,7 +339,12 @@ footer { border-top: 1px solid var(--line); margin-top: var(--sp-5); padding-top
 </header>
 
 <div class="shell" id="top">
+  <div class="toc-backdrop" id="tocBackdrop" hidden></div>
   <nav class="toc" id="toc" aria-label="目次">
+    <div class="toc-head">
+      <b>目次</b>
+      <button class="icon-btn" id="tocClose" type="button">閉じる</button>
+    </div>
     <h2>はじめに</h2>
     <ol>
       <li><a href="#why"><span class="tick">○</span>なぜ今AIセキュリティか</a></li>
@@ -1329,12 +1351,29 @@ model.load_state_dict(state)</code></pre>
   /* ---------- mobile toc ---------- */
   var toc = document.getElementById("toc");
   var tocToggle = document.getElementById("tocToggle");
-  tocToggle.addEventListener("click", function () {
-    var open = toc.classList.toggle("open");
+  var tocBackdrop = document.getElementById("tocBackdrop");
+  function setToc(open) {
+    toc.classList.toggle("open", open);
+    tocBackdrop.hidden = !open;
+    document.body.classList.toggle("toc-locked", open);
     tocToggle.setAttribute("aria-expanded", String(open));
+    if (open) {
+      var active = toc.querySelector("a.active");
+      if (active) active.scrollIntoView({ block: "center" });
+      document.getElementById("tocClose").focus();
+    }
+  }
+  tocToggle.addEventListener("click", function () { setToc(!toc.classList.contains("open")); });
+  document.getElementById("tocClose").addEventListener("click", function () { setToc(false); tocToggle.focus(); });
+  tocBackdrop.addEventListener("click", function () { setToc(false); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && toc.classList.contains("open")) { setToc(false); tocToggle.focus(); }
   });
   toc.addEventListener("click", function (e) {
-    if (e.target.closest("a")) { toc.classList.remove("open"); tocToggle.setAttribute("aria-expanded", "false"); }
+    if (e.target.closest("a")) setToc(false);
+  });
+  window.matchMedia("(min-width: 961px)").addEventListener("change", function (mq) {
+    if (mq.matches) setToc(false);
   });
 
   /* ---------- read tracking ---------- */
