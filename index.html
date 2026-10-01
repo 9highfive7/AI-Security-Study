@@ -304,6 +304,7 @@ footer { border-top: 1px solid var(--line); margin-top: var(--sp-5); padding-top
   /* スマホでは画面全高のドロワー。ヘッダーより手前に重ね、上端が隠れないようにする */
   .toc {
     position: fixed; top: 0; bottom: 0; left: 0;
+    align-self: stretch; /* 基本スタイルの start のままだと高さが中身に合わせて伸び、スクロールしない */
     width: min(20rem, 86vw); max-height: none; z-index: 40;
     background: var(--surface); border-right: 1px solid var(--line);
     padding: 0 var(--sp-2) calc(env(safe-area-inset-bottom, 0px) + var(--sp-4));
